@@ -2,14 +2,28 @@ require "csv"
 require "net/http"
 require "uri"
 require "openssl"
+require "cgi"
 
 INPUT_FILE = "urls.csv"
-OUTPUT_FILE = "link_issues_report.csv"
+REPORTS_DIR = "reports"
 
 MAX_REDIRECTS = 5
 OPEN_TIMEOUT = 10
 READ_TIMEOUT = 15
 REQUEST_DELAY = 0.30
+
+EXCLUDED_LINK_PREFIXES = [
+  "https://www.smartsurvey.co.uk/s/gov-uk-banner/"
+]
+
+def rainbow_teams(value)
+  value.to_s.split(" | ").map(&:strip).reject(&:empty?)
+end
+
+def report_filename_for_team(team)
+  "#{team.downcase}.csv"
+end
+
 
 def normalise_url(url)
   url.to_s.strip
@@ -89,6 +103,10 @@ def ignored_link?(href)
   ignored_schemes.any? { |scheme| href.downcase.start_with?(scheme) }
 end
 
+def excluded_link?(url)
+  EXCLUDED_LINK_PREFIXES.any? { |prefix| url.start_with?(prefix) }
+end
+
 def clean_anchor_text(anchor_html)
   anchor_html
     .to_s
@@ -104,7 +122,7 @@ def extract_links(html, source_url)
     next if ignored_link?(href)
 
     begin
-      absolute_url = URI.join(source_url, href.strip).to_s
+      absolute_url = URI.join(source_url, CGI.unescapeHTML(href.strip)).to_s
 
       links << {
         url: absolute_url,
@@ -385,7 +403,9 @@ source_pages.each_with_index do |source_page, index|
       problem: page[:problem],
       final_url: page[:final_url],
       anchor_text: "",
-      redirected: page[:redirected]
+      redirected: page[:redirected],
+      auth_journey: page[:auth_journey]
+
     }
 
     puts "  Could not fetch source page: #{page[:problem]}"
@@ -404,6 +424,7 @@ source_pages.each_with_index do |source_page, index|
   unique_links.each_value do |link|
     link_url = link[:url]
 
+    next if excluded_link?(link_url)
     next unless valid_http_url?(link_url)
 
     result = checked_links_cache[link_url]
@@ -422,7 +443,7 @@ source_pages.each_with_index do |source_page, index|
     is_private_publishing_link = private_publishing_url?(link_url)
     is_auth_journey = result[:auth_journey]
 
-    next unless is_broken || is_blocked || is_private_publishing_link || is_auth_journey
+    next unless is_broken || is_blocked || is_private_publishing_link 
 
     issue_type =
       if is_private_publishing_link
@@ -467,27 +488,35 @@ source_pages.each_with_index do |source_page, index|
   end
 end
 
-CSV.open(OUTPUT_FILE, "w") do |csv|
-  csv << [
-    "Rainbow Team",
-    "Page",
-    "Link Text",
-    "Link",
-    "Status",
-    "Problem",
-    "Org(s)"
-  ]
+teams = ["Red", "Blue", "Green", "Yellow"]
 
-  link_issues.each do |issue|
+teams.each do |team|
+  filename = File.join(REPORTS_DIR, report_filename_for_team(team))
+
+  CSV.open(filename, "w") do |csv|
     csv << [
-      issue[:rainbow_team],
-      issue[:source_page],
-      issue[:anchor_text],
-      issue[:problem_link],
-      issue[:status],
-      issue[:problem],
-      issue[:orgs]
+      "Rainbow Team",
+      "Page",
+      "Link Text",
+      "Link",
+      "Status",
+      "Problem",
+      "Org(s)"
     ]
+
+    link_issues.each do |issue|
+      next unless rainbow_teams(issue[:rainbow_team]).include?(team)
+
+      csv << [
+        issue[:rainbow_team],
+        issue[:source_page],
+        issue[:anchor_text],
+        issue[:problem_link],
+        issue[:status],
+        issue[:problem],
+        issue[:orgs]
+      ]
+    end
   end
 end
 
@@ -495,7 +524,9 @@ finished_at = Time.now
 elapsed_seconds = (finished_at - started_at).round
 
 broken_count = link_issues.count { |issue| issue[:issue_type] == "Broken link" }
+blocked_count = link_issues.count { |issue| issue[:issue_type] == "Blocked from checking" }
 private_publishing_count = link_issues.count { |issue| issue[:issue_type] == "Private publishing link" }
+authentication_journey_count = link_issues.count { |issue| issue[:issue_type] == "Authentication journey" }
 source_page_error_count = link_issues.count { |issue| issue[:issue_type] == "Source page error" }
 
 puts
@@ -504,7 +535,10 @@ puts "Source pages checked: #{source_pages.length}"
 puts "Unique links checked: #{checked_links_cache.length}"
 puts "Issues found: #{link_issues.length}"
 puts "Broken links found: #{broken_count}"
+puts "Blocked from checking found: #{blocked_count}"
 puts "Private publishing links found: #{private_publishing_count}"
+puts "Authentication journeys found: #{authentication_journey_count}"
 puts "Source page errors found: #{source_page_error_count}"
 puts "Elapsed time: #{elapsed_seconds} seconds"
-puts "Report written to #{OUTPUT_FILE}"
+puts "Reports written to #{REPORTS_DIR}/"
+puts "Team reports written: red.csv, blue.csv, green.csv, yellow.csv"
