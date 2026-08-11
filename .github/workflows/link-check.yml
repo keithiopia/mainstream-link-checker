@@ -3,6 +3,9 @@ name: Mainstream link checker
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   check-links:
     runs-on: ubuntu-latest
@@ -10,6 +13,8 @@ jobs:
     steps:
       - name: Get repository files
         uses: actions/checkout@v5
+        with:
+          ref: reports
 
       - name: Install Ruby
         uses: ruby/setup-ruby@v1
@@ -19,6 +24,18 @@ jobs:
       - name: Run link checker
         run: ruby page_link_checker.rb
 
+        - name: Commit updated reports
+          run: |
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add reports/
+
+          git diff --staged --quiet || git commit -m "Update link check reports"
+
+          git push origin reports
+            
       - name: Upload report
         uses: actions/upload-artifact@v5
         with:

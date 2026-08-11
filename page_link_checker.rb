@@ -458,7 +458,7 @@ source_pages.each_with_index do |source_page, index|
 
       reported_problem =
         if is_private_publishing_link
-          "We shouldn't use internal Publisher links, or to the Integration environment"
+          "We shouldn't use internal Publisher links, or links to the Integration environment"
         elsif is_auth_journey
           "This link redirects into an authentication journey that cannot be reliably checked by this script."
         elsif is_blocked
