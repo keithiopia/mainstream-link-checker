@@ -32,7 +32,6 @@ unless VALID_TEAMS.include?(SELECTED_TEAM)
   puts "Valid teams: #{VALID_TEAMS.join(', ')}"
   exit 1
 end
-``
 
 def rainbow_teams(value)
   teams = value.to_s.split(" | ").map(&:strip).reject(&:empty?)
