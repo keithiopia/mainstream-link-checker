@@ -45,8 +45,8 @@ jobs:
           echo "All CSV files:"
           find . -name "*.csv"
 
-      - name: Upload report
+      - name: Upload reports
         uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.team }}-report
-          path: reports/${{ matrix.team }}.csv
+          path: reports/
