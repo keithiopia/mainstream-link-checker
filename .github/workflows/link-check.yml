@@ -16,11 +16,11 @@ jobs:
     strategy:
       matrix:
         team:
-          - red
-          - blue
-          - green
-          - yellow
-          - unassigned
+          - Red
+          - Blue
+          - Green
+          - Yellow
+          - Unassigned
 
     steps:
       - name: Get repository files
