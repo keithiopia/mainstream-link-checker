@@ -36,6 +36,15 @@ jobs:
       - name: Run link checker
         run: ruby page_link_checker.rb ${{ matrix.team }}
 
+      - name: List reports
+        run: |
+          echo "Reports folder contents:"
+          ls -lah reports
+
+          echo ""
+          echo "All CSV files:"
+          find . -name "*.csv"
+
       - name: Upload report
         uses: actions/upload-artifact@v5
         with:
