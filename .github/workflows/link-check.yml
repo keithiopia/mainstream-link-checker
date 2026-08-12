@@ -3,6 +3,9 @@ name: Mainstream link checker
 on:
   workflow_dispatch:
 
+  schedule:
+    - cron: '0 8 1 * *'
+
 permissions:
   contents: write
 
