@@ -16,8 +16,27 @@ EXCLUDED_LINK_PREFIXES = [
   "https://www.smartsurvey.co.uk/s/gov-uk-banner/"
 ]
 
+VALID_TEAMS = ["Red", "Blue", "Green", "Yellow", "Unassigned"]
+
+SELECTED_TEAM = ARGV[0].to_s.strip
+
+if SELECTED_TEAM.empty?
+  puts "Usage: ruby page_link_checker.rb TEAM"
+  puts "Example: ruby page_link_checker.rb Red"
+  puts "Valid teams: #{VALID_TEAMS.join(', ')}"
+  exit 1
+end
+
+unless VALID_TEAMS.include?(SELECTED_TEAM)
+  puts "Unknown team: #{SELECTED_TEAM}"
+  puts "Valid teams: #{VALID_TEAMS.join(', ')}"
+  exit 1
+end
+``
+
 def rainbow_teams(value)
-  value.to_s.split(" | ").map(&:strip).reject(&:empty?)
+  teams = value.to_s.split(" | ").map(&:strip).reject(&:empty?)
+  teams.empty? ? ["Unassigned"] : teams
 end
 
 def report_filename_for_team(team)
@@ -373,13 +392,16 @@ source_pages = []
 
 CSV.foreach(INPUT_FILE, headers: true) do |row|
   source_url = normalise_source_url(row["slug"])
+  row_teams = rainbow_teams(row["first_org_rainbow_team"])
 
   next if source_url.empty?
+  next unless row_teams.include?(SELECTED_TEAM)
 
   source_pages << {
     url: source_url,
-    orgs: row["orgs"],
-    rainbow_team: row["rainbow_team"]
+    orgs: row["first_tagged_org"],
+    rainbow_team: row["first_org_rainbow_team"],
+    sessions: row["sessions"]
   }
 end
 
@@ -396,6 +418,7 @@ source_pages.each_with_index do |source_page, index|
       source_page: source_url,
       orgs: source_page[:orgs],
       rainbow_team: source_page[:rainbow_team],
+      sessions: source_page[:sessions],
       issue_type: "Source page error",
       problem_link: source_url,
       link_type: internal_url?(source_url) ? "internal source page" : "external source page",
@@ -473,6 +496,7 @@ source_pages.each_with_index do |source_page, index|
       source_page: source_url,
       orgs: source_page[:orgs],
       rainbow_team: source_page[:rainbow_team],
+      sessions: source_page[:sessions],
       issue_type: issue_type,
       problem_link: link_url,
       link_type: link_type,
@@ -488,35 +512,33 @@ source_pages.each_with_index do |source_page, index|
   end
 end
 
-teams = ["Red", "Blue", "Green", "Yellow"]
+teams = ["Red", "Blue", "Green", "Yellow", "Unassigned"]
 
-teams.each do |team|
-  filename = File.join(REPORTS_DIR, report_filename_for_team(team))
+filename = File.join(REPORTS_DIR, report_filename_for_team(SELECTED_TEAM))
 
-  CSV.open(filename, "w") do |csv|
+CSV.open(filename, "w") do |csv|
+  csv << [
+    "Rainbow Team",
+    "Page",
+    "Link Text",
+    "Link",
+    "Status",
+    "Problem",
+    "Sessions",
+    "Org(s)"
+  ]
+
+  link_issues.each do |issue|
     csv << [
-      "Rainbow Team",
-      "Page",
-      "Link Text",
-      "Link",
-      "Status",
-      "Problem",
-      "Org(s)"
+      issue[:rainbow_team],
+      issue[:source_page],
+      issue[:anchor_text],
+      issue[:problem_link],
+      issue[:status],
+      issue[:problem],
+      issue[:sessions],
+      issue[:orgs]
     ]
-
-    link_issues.each do |issue|
-      next unless rainbow_teams(issue[:rainbow_team]).include?(team)
-
-      csv << [
-        issue[:rainbow_team],
-        issue[:source_page],
-        issue[:anchor_text],
-        issue[:problem_link],
-        issue[:status],
-        issue[:problem],
-        issue[:orgs]
-      ]
-    end
   end
 end
 
@@ -540,5 +562,5 @@ puts "Private publishing links found: #{private_publishing_count}"
 puts "Authentication journeys found: #{authentication_journey_count}"
 puts "Source page errors found: #{source_page_error_count}"
 puts "Elapsed time: #{elapsed_seconds} seconds"
-puts "Reports written to #{REPORTS_DIR}/"
-puts "Team reports written: red.csv, blue.csv, green.csv, yellow.csv"
+puts "Selected team: #{SELECTED_TEAM}"
+puts "Report written to #{filename}"
