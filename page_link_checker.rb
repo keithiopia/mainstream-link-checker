@@ -8,7 +8,7 @@ INPUT_FILE = "urls.csv"
 REPORTS_DIR = "reports"
 
 MAX_REDIRECTS = 5
-OPEN_TIMEOUT = 10
+OPEN_TIMEOUT = 12
 READ_TIMEOUT = 15
 REQUEST_DELAY = 0.30
 
@@ -383,6 +383,15 @@ def blocked_status?(status)
   status.is_a?(Integer) && status == 403
 end
 
+def definitely_broken?(status)
+  [
+    404,
+    "Timeout",
+    "DNS Error",
+    "SSL Error"
+  ].include?(status)
+end
+
 started_at = Time.now
 
 link_issues = []
@@ -513,21 +522,72 @@ end
 
 teams = ["Red", "Blue", "Green", "Yellow", "Unassigned"]
 
-filename = File.join(REPORTS_DIR, report_filename_for_team(SELECTED_TEAM))
+broken_issues = link_issues.select do |issue|
+  definitely_broken?(issue[:status])
+end
 
-CSV.open(filename, "w") do |csv|
-  csv << [
-    "Rainbow Team",
-    "Page",
-    "Link Text",
-    "Link",
-    "Status",
-    "Problem",
-    "Sessions",
-    "Org(s)"
+suspect_issues = link_issues.reject do |issue|
+  definitely_broken?(issue[:status])
+end
+
+broken_issues.sort_by! do |issue|
+  [
+    -(issue[:sessions].to_s.gsub(",", "").to_i),
+    issue[:source_page].to_s,
+    issue[:problem_link].to_s
   ]
+end
 
-  link_issues.each do |issue|
+suspect_issues.sort_by! do |issue|
+  [
+    -(issue[:sessions].to_s.gsub(",", "").to_i),
+    issue[:source_page].to_s,
+    issue[:problem_link].to_s
+  ]
+end
+
+broken_filename = File.join(
+  REPORTS_DIR,
+  "#{SELECTED_TEAM.downcase}-broken.csv"
+)
+
+suspect_filename = File.join(
+  REPORTS_DIR,
+  "#{SELECTED_TEAM.downcase}-suspect.csv"
+)
+
+report_header = [
+  "Rainbow Team",
+  "Page",
+  "Link Text",
+  "Link",
+  "Status",
+  "Problem",
+  "Sessions",
+  "Org(s)"
+]
+
+CSV.open(broken_filename, "w") do |csv|
+  csv << report_header
+
+  broken_issues.each do |issue|
+    csv << [
+      issue[:rainbow_team],
+      issue[:source_page],
+      issue[:anchor_text],
+      issue[:problem_link],
+      issue[:status],
+      issue[:problem],
+      issue[:sessions],
+      issue[:orgs]
+    ]
+  end
+end
+
+CSV.open(suspect_filename, "w") do |csv|
+  csv << report_header
+
+  suspect_issues.each do |issue|
     csv << [
       issue[:rainbow_team],
       issue[:source_page],
@@ -562,4 +622,7 @@ puts "Authentication journeys found: #{authentication_journey_count}"
 puts "Source page errors found: #{source_page_error_count}"
 puts "Elapsed time: #{elapsed_seconds} seconds"
 puts "Selected team: #{SELECTED_TEAM}"
-puts "Report written to #{filename}"
+puts "Broken issues in this report: #{broken_issues.length}"
+puts "Suspect issues in this report: #{suspect_issues.length}"
+puts "Broken report written to #{broken_filename}"
+puts "Suspect report written to #{suspect_filename}"
