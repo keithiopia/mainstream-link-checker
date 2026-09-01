@@ -45,7 +45,10 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.file }}-report
-          path: reports/${{ matrix.file }}.csv
+          path: |
+            reports/${{ matrix.file }}-broken.csv
+            reports/${{ matrix.file }}-suspect.csv
+          if-no-files-found: error
 
   commit-reports:
     needs: check-links
