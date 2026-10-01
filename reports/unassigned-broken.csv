@@ -1,11 +1,9 @@
 Rainbow Team,Page,Link Text,Link,Status,Problem,Sessions,Org(s)
-,https://www.gov.uk/food-allergies/having-an-reaction,Anaphylaxis UK,https://www.anaphylaxis.org.uk/,Timeout,Net::ReadTimeout with #<TCPSocket:(closed)>,40,
 ,https://www.gov.uk/cysylltu-ar-cwmni-benthyciadau-myfyrwyr,Cyllid Myfyrwyr Cymru,https://www.cyllidmyfyrwyrcymru.co.uk/cysylltwch/,404,Not Found,34,
 ,https://www.gov.uk/trwyddedau-pysgota,trwydded pysgota mewn lociau a choredau,https://www.gov.uk/canllawiau/pysgota-ar-afon-tafwys,404,Not Found,20,
 ,https://www.gov.uk/rhedeg-busnes-bwyd,"labelu, hysbysebu a marchnata bwyd",https://www.gov.uk/labelu-bwyd-a-phecynnu,404,Not Found,17,
 ,https://www.gov.uk/alergeddau-bwyd,fwyd PPDS,https://www.gov.uk/introduction-to-allergen-labelling-for-ppds-food.cy,404,Not Found,6,
 ,https://www.gov.uk/treth-incwm-tramor/preswylio,Dechrau nawr,https://www.tax.service.gov.uk/guidance/check-your-UK-residence-status,404,Not Found,3,
-,https://www.gov.uk/alergeddau-bwyd/cael-adwaith,Anaphylaxis UK,https://www.anaphylaxis.org.uk/,Timeout,Net::ReadTimeout with #<TCPSocket:(closed)>,2,
 ,https://www.gov.uk/digwyddiadau-bwyd-neu-fwyd-anifeiliaid,y digwyddiadau bwyd neu fwyd anifeiliaid diweddaraf a’r achosion diweddaraf o alw cynhyrchion yn ôl,https://www.food.gov.uk/cy/news-alerts,404,Not Found,2,
 ,https://www.gov.uk/done/register-to-vote,Check what ID you need to vote,https://www.gov.uk/done/how-to-vote/photo-id-youll-need?step-by-step-nav=ff81c31c-3282-49df-85a4-013887130110,404,Not Found,1,
 ,https://www.gov.uk/troseddau-bwyd/rhoi-gwybod,Dechrau nawr,https://submit.forms.service.gov.uk/form/265386/report-a-food-crime.cy,404,Not Found,1,
