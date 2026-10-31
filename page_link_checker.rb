@@ -13,7 +13,8 @@ READ_TIMEOUT = 15
 REQUEST_DELAY = 0.30
 
 EXCLUDED_LINK_PREFIXES = [
-  "https://www.smartsurvey.co.uk/s/gov-uk-banner/"
+  "https://www.smartsurvey.co.uk/s/gov-uk-banner/",
+  "https://www.safeharbourcharity.org/overseas"
 ]
 
 VALID_TEAMS = ["Red", "Blue", "Green", "Yellow", "Unassigned"]
@@ -42,6 +43,42 @@ def report_filename_for_team(team)
   "#{team.downcase}.csv"
 end
 
+def sessions_number(value)
+  value.to_s.delete(",").to_i
+end
+
+def content_group_key(url)
+  uri = URI.parse(url)
+  first_path_segment = uri.path.to_s.split("/").reject(&:empty?).first
+
+  first_path_segment || url.to_s
+rescue URI::InvalidURIError
+  url.to_s
+end
+
+def sort_by_content_group_and_sessions(issues)
+  group_priorities = issues
+    .group_by { |issue| content_group_key(issue[:source_page]) }
+    .transform_values do |group_issues|
+      group_issues
+        .map { |issue| sessions_number(issue[:sessions]) }
+        .max || 0
+    end
+
+  issues.sort_by do |issue|
+    group_key = content_group_key(issue[:source_page])
+    group_priority = group_priorities[group_key]
+    page_sessions = sessions_number(issue[:sessions])
+
+    [
+      -group_priority,
+      group_key,
+      -page_sessions,
+      issue[:source_page].to_s,
+      issue[:problem_link].to_s
+    ]
+  end
+end
 
 def normalise_url(url)
   url.to_s.strip
@@ -68,7 +105,8 @@ def internal_url?(url)
   [
     "www.gov.uk",
     "www.integration.publishing.service.gov.uk",
-    "www.publishing.service.gov.uk"
+    "www.publishing.service.gov.uk",
+    "draft-origin.publishing.service.gov.uk"
   ].include?(host)
 rescue URI::InvalidURIError
   false
@@ -84,7 +122,8 @@ def private_publishing_url?(url)
 
   [
     "www.integration.publishing.service.gov.uk",
-    "www.publishing.service.gov.uk"
+    "www.publishing.service.gov.uk",
+    "draft-origin.publishing.service.gov.uk"
   ].include?(host)
 rescue URI::InvalidURIError
   false
@@ -383,13 +422,14 @@ def blocked_status?(status)
   status.is_a?(Integer) && status == 403
 end
 
-def definitely_broken?(status)
-  [
-    404,
-    "Timeout",
-    "DNS Error",
-    "SSL Error"
-  ].include?(status)
+def definitely_broken?(issue)
+  issue[:issue_type] == "Private publishing link" ||
+    [
+      404,
+      "Timeout",
+      "DNS Error",
+      "SSL Error"
+    ].include?(issue[:status])
 end
 
 started_at = Time.now
@@ -489,7 +529,7 @@ source_pages.each_with_index do |source_page, index|
 
       reported_problem =
         if is_private_publishing_link
-          "We shouldn't use internal Publisher links, or links to the Integration environment"
+          "This is an internal Publisher link, or links to the Integration environment"
         elsif is_auth_journey
           "This link redirects into an authentication journey that cannot be reliably checked by this script."
         elsif is_blocked
@@ -523,28 +563,15 @@ end
 teams = ["Red", "Blue", "Green", "Yellow", "Unassigned"]
 
 broken_issues = link_issues.select do |issue|
-  definitely_broken?(issue[:status])
+  definitely_broken?(issue)
 end
 
 suspect_issues = link_issues.reject do |issue|
-  definitely_broken?(issue[:status])
+  definitely_broken?(issue)
 end
 
-broken_issues.sort_by! do |issue|
-  [
-    -(issue[:sessions].to_s.gsub(",", "").to_i),
-    issue[:source_page].to_s,
-    issue[:problem_link].to_s
-  ]
-end
-
-suspect_issues.sort_by! do |issue|
-  [
-    -(issue[:sessions].to_s.gsub(",", "").to_i),
-    issue[:source_page].to_s,
-    issue[:problem_link].to_s
-  ]
-end
+broken_issues = sort_by_content_group_and_sessions(broken_issues)
+suspect_issues = sort_by_content_group_and_sessions(suspect_issues)
 
 broken_filename = File.join(
   REPORTS_DIR,
