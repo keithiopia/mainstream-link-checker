@@ -136,7 +136,8 @@ def authentication_url?(url)
   [
     "dcidm.b2clogin.com",
     "your-account.defra.gov.uk",
-    "login.microsoftonline.com"
+    "login.microsoftonline.com",
+    "hmcts-access.service.gov.uk"
   ].include?(host)
 rescue URI::InvalidURIError
   false
@@ -423,14 +424,19 @@ def blocked_status?(status)
 end
 
 def definitely_broken?(issue)
-  issue[:issue_type] == "Private publishing link" ||
-    [
-      404,
-      "Timeout",
-      "DNS Error",
-      "SSL Error"
-    ].include?(issue[:status])
+  return true if issue[:issue_type] == "Private publishing link"
+
+  return false if issue[:status] == "SSL Error" &&
+                  issue[:problem].to_s.include?("unable to get local issuer certificate")
+
+  [
+    404,
+    "Timeout",
+    "DNS Error",
+    "SSL Error"
+  ].include?(issue[:status])
 end
+
 
 started_at = Time.now
 
