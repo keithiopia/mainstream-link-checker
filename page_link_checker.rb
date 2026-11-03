@@ -426,6 +426,8 @@ end
 def definitely_broken?(issue)
   return true if issue[:issue_type] == "Private publishing link"
 
+  return false if issue[:issue_type] == "Authentication journey"
+
   return false if issue[:status] == "SSL Error" &&
                   issue[:problem].to_s.include?("unable to get local issuer certificate")
 
